@@ -1,0 +1,150 @@
+<html>
+<head>
+<script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
+</head>
+<body>
+<div id="graphdiv2"
+  style="width:1024px; height:600px;"></div>
+<p><b>Display: </b>
+<input type=checkbox id=0 onClick="toggle_visibility(this)" checked>
+<label for="0"> Latency</label>
+<input type=checkbox id=1 onClick="toggle_visibility(this)" checked>
+<label for="1"> Download</label>
+<input type=checkbox id=2 onClick="toggle_visibility(this)" checked>
+<label for="2"> Upload</label>
+</p>
+<script type="text/javascript">
+
+  //AJAX query for CSV file
+  var req = new XMLHttpRequest();
+  req.onreadystatechange = function () {
+    if (req.readyState == 4) {
+      if (req.status === 200 || // Normal http
+          req.status === 0) { // Chrome w/ --allow-file-access-from-files
+        var data = req.responseText;
+        drawGraph(data);
+      }
+    }
+  };
+  req.open('GET', 'bandwidth_report_sample.csv', true);
+  req.send(null);
+
+  //Graph draw function
+  var drawGraph = function(data) {
+    //data threatment (select columns)
+    var parsed_data = toArray(data);
+    var firstRow = parsed_data[0];
+    var data = parsed_data.slice(1); // Remove first element (labels)
+
+    data_averages = getAverages(data);
+    //data for average line
+    var xmin = data[0][0], xmax=data[data.length-1][0];
+    //data display
+    graph = new Dygraph(
+      "graphdiv2", //div
+      data,
+      {
+        labels: firstRow,
+        title: "Bandwidth Graph",
+        //xlabel: "Date/time",
+        legend: "always",
+        showRangeSelector: true,
+        //ylabel: "Kilobits/second (Kb/s)",
+        //showRoller: true,
+        underlayCallback:function(ctx,area,dygraph){
+          //draw latency average
+          var xl = dygraph.toDomCoords(xmin,data_averages[0]);
+          var xr = dygraph.toDomCoords(xmax,data_averages[0]);
+          ctx.strokeStyle= 'black';
+          ctx.beginPath();
+          ctx.moveTo(xl[0],xl[1]);
+          ctx.lineTo(xr[0],xr[1]);
+          ctx.closePath();
+          ctx.stroke();
+          //draw download bandwith average
+          var xl = dygraph.toDomCoords(xmin,data_averages[1]);
+          var xr = dygraph.toDomCoords(xmax,data_averages[1]);
+          ctx.strokeStyle= 'black';
+          ctx.beginPath();
+          ctx.moveTo(xl[0],xl[1]);
+          ctx.lineTo(xr[0],xr[1]);
+          ctx.closePath();
+          ctx.stroke();
+          //draw upload bandwith average
+          var xl = dygraph.toDomCoords(xmin,data_averages[2]);
+          var xr = dygraph.toDomCoords(xmax,data_averages[2]);
+          ctx.strokeStyle= 'black';
+          ctx.beginPath();
+          ctx.moveTo(xl[0],xl[1]);
+          ctx.lineTo(xr[0],xr[1]);
+          ctx.closePath();
+          ctx.stroke();
+
+        }
+      }
+    );
+  }
+
+
+  //returns an array with latency, dowload and upload bandwidth averages
+  var getAverages = function(data){
+
+    var result_array = [];
+    var dlspeed_sum = 0, upspeed_sum = 0, latency_sum = 0;
+
+    for (var idx = 0; idx < data.length; idx++){
+      latency_sum+=data[idx][1];
+      dlspeed_sum+=data[idx][2];
+      upspeed_sum+=data[idx][3];
+    }
+
+    result_array.push(latency_sum/data.length);
+    result_array.push(dlspeed_sum/data.length);
+    result_array.push(upspeed_sum/data.length);
+
+    return result_array;
+
+  }
+
+  //turns csv raw data into an parsed array
+  //columns: data, latency, download, upload
+  var toArray = function(data) {
+    //load lines
+    var lines = data.split("\n");
+    var arry = [];
+
+    //parse lines
+    for (var idx = 0; idx < lines.length; idx++) {
+      var line = lines[idx];
+      // Oftentimes there's a blank line at the end. Ignore it.
+      if (line.length == 0) {
+        continue;
+      }
+      var row = line.split(";");
+
+      // Special processing
+      // remove first field (including header)
+      row.splice(0,1);
+
+      // parse data (except header)
+      if (idx > 0) {
+        row[0] = new Date(row[0]); // Turn the string date into a Date.
+
+        // turn string into float
+        for (var rowIdx = 1; rowIdx < row.length; rowIdx++) {
+          // Turn "123" into 123.
+          row[rowIdx] = parseFloat(row[rowIdx]);
+        }
+      }
+      arry.push(row);
+    }
+    return arry;
+  }
+
+  function toggle_visibility(el) {
+    graph.setVisibility(el.id, el.checked);
+  }
+
+</script>
+</body>
+</html>
